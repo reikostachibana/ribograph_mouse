@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import ZScorePlot from '../components/ZScorePlot.vue'
-import { getGeneList, openGeneView, getZScoreData, sliderLogic, getExperimentList, openZScoreView } from '../utils'
+import { getGeneList, openGeneView, getCoverageData, sliderLogic, getExperimentList, openZScoreView } from '../utils'
 import SearchableList from '../components/SearchableList.vue';
 import CheckboxTooltip from '../components/CheckboxTooltip.vue';
 
