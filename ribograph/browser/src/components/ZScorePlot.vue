@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import PlotlyPlot from './PlotlyPlot.vue'
 import type Plotly from '../plotly'
-import { generateRange, CODON_DICT, getZScoreData, DataArray2D, sliderLogic } from '../utils'
+import { generateRange, CODON_DICT, getCoverageData, DataArray2D, sliderLogic } from '../utils'
 import { getOffsetComputed } from '../localStorageStore'
 
 const { sliderPositionsRaw, sliderPositions } = sliderLogic()
@@ -14,9 +14,9 @@ const props = defineProps<{
     useOffsets?: boolean
 }>()
 
-interface ZScoreData {
+interface CoverageData {
     cdsRange: [number, number],
-    zScore: {
+    coverage: {
         index: number[],
         columns: number[],
         data: number[][]
@@ -30,30 +30,44 @@ interface ZScoreData {
     geneSequence?: string
 }
 
-const zScoreData = ref<ZScoreData[]>([])
+const coverageData = ref<CoverageData[]>([])
 
-function updateZScoreData() {
+function updateCoverageData() {
     if (props.gene) {
-        zScoreData.value = []
+        coverageData.value = []
         props.ids.forEach(addExperiment)
     }
 }
 
+function calculateMean(values: number[]): number {
+  const sum = values.reduce((acc, val) => acc + val, 0);
+  return sum / values.length;
+}
+
+function calculateStandardDeviation(values: number[], mean: number): number {
+  const squaredDiffSum = values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0);
+  const variance = squaredDiffSum / values.length;
+  return Math.sqrt(variance);
+}
+
+function calculateZScore(value: number, mean: number, standardDeviation: number): number {
+  return (value - mean) / standardDeviation;
+}
+
+
 async function addExperiment(experiment: number) {
-    getZScoreData(experiment, props.gene).then(async x => {
+    getCoverageData(experiment, props.gene).then(async x => {
         if (x) {
             x.id = experiment
             x.offset = (await getOffsetComputed(experiment)).value
-            zScoreData.value.push(x)
-
-            console.log('zScoreData:', zScoreData.value)
+            coverageData.value.push(x)
         }
     })
 }
 
-updateZScoreData() // on init
+updateCoverageData() // on init
 watch(() => props.gene, () => {
-    updateZScoreData()
+    updateCoverageData()
 })
 
 // assume experiment ids can only be appended
@@ -63,42 +77,51 @@ watch(() => props.ids, (newIds, oldIds) => {
     }
 })
 
-const cdsRange = computed(() => zScoreData.value.length > 0 ? zScoreData.value[0].cdsRange : null)
+const cdsRange = computed(() => coverageData.value.length > 0 ? coverageData.value[0].cdsRange : null)
 
 
-const min = computed(() => zScoreData.value.length > 0 ? 
-    Math.min(...zScoreData.value.map(x => x.min)) : 15)
-const max = computed(() => zScoreData.value.length > 0 ? 
-    Math.max(...zScoreData.value.map(x => x.min + x.zScore.data.length - 1)) : 40)
+const min = computed(() => coverageData.value.length > 0 ? 
+    Math.min(...coverageData.value.map(x => x.min)) : 15)
+const max = computed(() => coverageData.value.length > 0 ? 
+    Math.max(...coverageData.value.map(x => x.min + x.coverage.data.length - 1)) : 40)
 
 const datasets = computed<Partial<Plotly.PlotData>[]>(() => {
-    const geneData: Partial<Plotly.PlotData>[] = zScoreData.value
-        .filter(x => x.gene === props.gene)
-        .map(x => ({
-            x: generateRange(0, x.zScore.columns.length),
-            y: (new DataArray2D(x.zScore.data, x.min))
-                // sliceSum the data by the slider values
-                .sliceSum(...sliderPositions.value, props.useOffsets ? x.offset : null),
-            // mode: 'lines+markers',
-            type: 'bar',
-            name: x.experiment,
-            // width: 1,
-            marker: {
-                // color: 'rgb(128, 0, 128)',
-                // size: 2
-                opacity: 0.5, // TODO try different opacities
-            },
-            ...(geneSeqenceText.value) && { text: geneSeqenceText.value },
-            textposition: 'none',
-            // insidetextanchor: 'start'
-        }))
+  const geneData: Partial<Plotly.PlotData>[] = coverageData.value
+    .filter(x => x.gene === props.gene)
+    .map(x => {
+      const coverage = (new DataArray2D(x.coverage.data, x.min))
+        .sliceSum(...sliderPositions.value, props.useOffsets ? x.offset : null);
 
-    if (geneSequenceLabels.value) {
-        geneData.unshift(geneSequenceLabels.value) // add gene labels to begning of array
-    }
+      const cdsCoverage = coverage.slice(cdsRange.value[0], cdsRange.value[1] + 1);
 
-    return geneData
-})
+      // Calculate mean and standard deviation of coverage
+      const mean = calculateMean(cdsCoverage);
+      const stdDev = calculateStandardDeviation(cdsCoverage, mean);
+      console.log(mean, stdDev)
+
+      // Apply z-score algorithm to each coverage value
+      const zScores = coverage.map(value => calculateZScore(value, mean, stdDev));
+
+      return {
+        x: generateRange(0, x.coverage.columns.length),
+        y: zScores,
+        type: 'bar',
+        name: x.experiment,
+        marker: {
+          opacity: 0.5, // Adjust as needed
+        },
+        textposition: 'none',
+      };
+    });
+
+  // Add gene sequence labels if available
+  if (geneSequenceLabels.value) {
+    geneData.unshift(geneSequenceLabels.value);
+  }
+
+  return geneData;
+});
+
 
 const options = computed<Partial<Plotly.Layout>>(() => ({
     title: {
@@ -138,15 +161,15 @@ const options = computed<Partial<Plotly.Layout>>(() => ({
 }))
 
 const geneSequence = computed(() => {
-    if (zScoreData.value && zScoreData.value.length > 0) {
-        return zScoreData.value[0].geneSequence
+    if (coverageData.value && coverageData.value.length > 0) {
+        return coverageData.value[0].geneSequence
     }
     return null
 })
 
-const geneSeqenceText = computed<string[]>(() => {
+const geneSequenceText = computed<string[]>(() => {
 
-    if (zScoreData.value.length == 0) {
+    if (coverageData.value.length == 0) {
         return []
     }
 
@@ -169,7 +192,7 @@ const geneSeqenceText = computed<string[]>(() => {
 })
 
 // find the maximum value across all data
-const maxValue = computed<number>(() => Math.max(...zScoreData.value.map(x => x.zScore.data).flat(2)))
+const maxValue = computed<number>(() => Math.max(...coverageData.value.map(x => x.coverage.data).flat(2)))
 
 /**
  * Return an array of color strings in parallel with the geneSequence.
@@ -211,7 +234,7 @@ const geneSequenceLabels = computed<Partial<Plotly.PlotData> | null>(() =>
                 color: makeColorArray(geneSequence.value.length, cdsRange.value)
             },
             text: Array.from(geneSequence.value),
-            customdata: [geneSeqenceText.value],
+            customdata: [geneSequenceText.value],
             textposition: viewSize.value < GENE_VIEW_THRESHOLD ? 'auto' : 'none',
             // insidetextanchor: 'start',
             visible: 'legendonly',
