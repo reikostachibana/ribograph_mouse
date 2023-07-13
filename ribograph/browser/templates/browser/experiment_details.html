@@ -10,6 +10,8 @@
        class="btn btn-outline-dark mb-3">Download Ribo</a>
     <a href="{% url 'browser:coverage' experiment.id %}"
        class="btn btn-outline-dark mb-3">View Coverage</a>
+    <a href="{% url 'browser:zscore' experiment.id %}"
+       class="btn btn-outline-dark mb-3">View ZScore</a>
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {% bootstrap_form description_form %}

@@ -68,13 +68,19 @@ watch(focusPoint, (n) => {
                 View Coverage
             </a>
         </div>
+        <div style="margin-left: 10px;"></div>
+        <div>
+            <a class="btn btn-primary me-2" :href="`/${experiment}/zscore`">
+                View Z-Score
+            </a>
+        </div>
         <div class="ms-4 me-auto align-self-center">
             <CheckboxTooltip v-model="autofocus"
                 tooltip="Automatically adjust slider bounds based on focused offset element">
                 Autofocus
             </CheckboxTooltip>
         </div>
-
+        
         <div class="">
             <button class="btn btn-warning me-2" @click="offsets.fill(0)" title="Set offsets to 0">Reset</button>
             <button type="button" class="btn btn-success" title="Store offsets locally"

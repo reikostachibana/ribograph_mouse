@@ -264,6 +264,50 @@ def get_coverage(ribo, experiment: Experiment, request, *args, **kwargs):
 
 
 @register_experiment_api
+def get_zscore(ribo, experiment: Experiment, request, *args, **kwargs):
+    """
+    Calculate the z-scores for a particular gene in an experiment based on the regular z-score equation.
+    Also returns the CDS range for the gene and the sequence.
+    """
+    gene = request.GET.get("gene")
+    if gene is None:
+        return HttpResponseBadRequest(
+            "gene name must be provided as a URL parameter"
+        )
+
+    df = ribo.get_transcript_coverage(
+        experiment.name, alias=(ribo.alias != None), transcript=gene
+    )
+    cds_range = get_cds_range_lookup(ribo)[gene][1]
+    gene_sequence = get_sequence_dict(
+        experiment.reference,
+        ribo=ribo,
+        alias=(ribo.alias.get_alias if ribo.alias != None else lambda x: x),
+    )
+
+    # Calculate z-scores based on regular z-score equation
+    z_scores_df = pd.DataFrame(index=df.index, columns=df.columns)
+    for index, row in df.iterrows():
+        row_mean = row.mean()
+        row_std = row.std()
+
+        if row_std == 0:
+            z_scores = pd.Series(0, index=row.index)
+        else:
+            z_scores = (row - row_mean) / row_std
+            z_scores[z_scores < 0] = 0
+            z_scores[pd.isnull(z_scores)] = 0
+
+        z_scores_df.loc[index] = z_scores
+    return {
+        "cdsRange": (int(cds_range[0]), int(cds_range[1]) - 1),
+        "zScore": z_scores_df.to_dict(orient="split"),
+        "gene": gene,
+        "geneSequence": gene_sequence[gene] if gene_sequence else None,
+    }
+
+
+@register_experiment_api
 def list_experiments(ribo, experiment: Experiment, request, *args, **kwargs):
     """
     List all experiments compatible with the given experiment for the purposes of comparing coverage plots

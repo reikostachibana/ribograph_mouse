@@ -77,10 +77,17 @@ export const getCoverageData = (experiment_id: number, gene: string) => (
         `/api/${experiment_id}/getCoverage?gene=${gene}`)
 )
 
+export const getZScoreData = (experiment_id: number, gene: string) => (
+    handleAPICall(`Loading z-scores for ${gene} in experiment ${experiment_id}`,
+        `/api/${experiment_id}/getZscore?gene=${gene}`)
+)
+
 export const getExperimentList = (experiment_id: number) => (
     handleAPICall(`Loading experiment list`,
         `/api/${experiment_id}/listExperiments`)
 )
+
+
 /////////////////////////
 /// CHART UTILITIES
 /////////////////////////
@@ -122,6 +129,10 @@ export function openGeneView(gene: string, genome?: string): void {
 
 export function openCoverageView(experiment_id: number) {
     window.open(`/${experiment_id}/coverage`, "_self")
+}
+
+export function openZScoreView(experiment_id: number) {
+    window.open(`/${experiment_id}/zscore`, "_self")
 }
 
 

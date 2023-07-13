@@ -81,6 +81,27 @@ def coverage(request, experiment_id):
     }
     return render(request, "browser/coverage.html", context)
 
+@login_required
+def zscore(request, experiment_id):
+    this_experiment = Experiment.objects.get(id=experiment_id)
+    this_project = this_experiment.project
+
+    reference_form = ExperimentReferenceForm(instance=this_experiment)
+
+    if request.method == "POST":
+        reference_form = ExperimentReferenceForm(request.POST, instance=this_experiment)
+        if reference_form.is_valid():
+            reference_form.save()
+            return HttpResponseRedirect(
+                reverse("browser:zscore", args=[experiment_id])
+            )
+
+    context = {
+        "project": this_project,
+        "experiment": this_experiment,
+        "reference_form": reference_form,
+    }
+    return render(request, "browser/zscore.html", context)
 
 @login_required
 def offset(request, experiment_id):
