@@ -4,6 +4,7 @@ import Toast from "vue-toastification";
 import type { PluginOptions } from "vue-toastification";
 import VueVirtualScroller from 'vue-virtual-scroller'
 import Slider from '@vueform/slider'
+import SecondSlider from '@vueform/slider'
 
 import '@vueform/slider/themes/default.css'
 import "vue-toastification/dist/index.css";
@@ -20,4 +21,5 @@ const options: PluginOptions = {
 app.use(Toast, options);
 app.use(VueVirtualScroller)
 app.component('Slider', Slider)
+app.component('SecondSlider', SecondSlider)
 app.mount('#app');

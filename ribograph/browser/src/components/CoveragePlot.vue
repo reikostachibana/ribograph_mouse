@@ -5,7 +5,8 @@ import type Plotly from '../plotly'
 import { generateRange, CODON_DICT, getCoverageData, DataArray2D, sliderLogic } from '../utils'
 import { getOffsetComputed } from '../localStorageStore'
 
-const { sliderPositionsRaw, sliderPositions } = sliderLogic()
+const { sliderPositionsRaw, sliderPositions, sliderPositionsSecondRaw, sliderPositionsSecond } = sliderLogic()
+
 
 const props = defineProps<{
     gene: string, // the gene name
@@ -95,8 +96,35 @@ const datasets = computed<Partial<Plotly.PlotData>[]>(() => {
         geneData.unshift(geneSequenceLabels.value) // add gene labels to begning of array
     }
 
-    return geneData
+    const geneDataSecond: Partial<Plotly.PlotData>[] = coverageData.value
+        .filter(x => x.gene === props.gene)
+        .map(x => ({
+            x: generateRange(0, x.coverage.columns.length),
+            y: (new DataArray2D(x.coverage.data, x.min))
+                // sliceSum the data by the slider values
+                .sliceSum(...sliderPositionsSecond.value, props.useOffsets ? x.offset : null),
+            // mode: 'lines+markers',
+            type: 'bar',
+            name: x.experiment,
+            // width: 1,
+            marker: {
+                // color: 'rgb(128, 0, 128)',
+                // size: 2
+                opacity: 0.5, // TODO try different opacities
+            },
+            ...(geneSeqenceText.value) && { text: geneSeqenceText.value },
+            textposition: 'none',
+            // insidetextanchor: 'start'
+        }))
+
+    if (geneSequenceLabels.value) {
+        geneDataSecond.unshift(geneSequenceLabels.value) // add gene labels to begning of array
+    }
+
+    return geneData.concat(geneDataSecond)
 })
+
+
 
 const options = computed<Partial<Plotly.Layout>>(() => ({
     title: {
@@ -226,8 +254,19 @@ function setTextViewState(eventdata: Plotly.PlotRelayoutEvent) {
 </script>
 
 <template>
-    <div class="my-5">
-        <Slider v-model="sliderPositionsRaw" :min="min" :max="max" :lazy="false" />
+  <div class="my-5">
+    <div class="slider-container">
+      <Slider v-model="sliderPositionsRaw" :min="min" :max="max" :lazy="false" />
     </div>
-    <PlotlyPlot :datasets="datasets" :options="options" @plotly_relayout="setTextViewState($event)" class="mb-4" />
+    <div class="slider-container">
+      <Slider v-model="sliderPositionsSecondRaw" :min="min" :max="max" :lazy="false" />
+    </div>
+  </div>
+  <PlotlyPlot :datasets="datasets" :options="options" @plotly_relayout="setTextViewState($event)" class="mb-4" />
 </template>
+
+<style>
+.slider-container {
+  margin-bottom: 50px; /* Adjust the margin as needed */
+}
+</style>

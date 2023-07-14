@@ -278,13 +278,19 @@ export class DataArray2D extends DataArray<Array<number>>{
 export function sliderLogic() {
     // TODO don't hardcode slider min and max
     const sliderPositionsRaw = ref([15, 40] as [number, number]) // slider positions as a tuple
+    const sliderPositionsSecondRaw = ref([15, 40] as [number, number]) // second slider positions as a tuple
     const sliderPositions = ref(sliderPositionsRaw.value)
+    const sliderPositionsSecond = ref(sliderPositionsSecondRaw.value)
 
     watch(sliderPositionsRaw, throttle((val) => {
         sliderPositions.value = val
     }, 200, { leading: false }))
 
-    return { sliderPositionsRaw, sliderPositions }
+    watch(sliderPositionsSecondRaw, throttle((val) => {
+        sliderPositionsSecond.value = val
+    }, 200, { leading: false }))
+
+    return { sliderPositionsRaw, sliderPositions, sliderPositionsSecondRaw, sliderPositionsSecond }
 }
 
 interface ApiDataType {
