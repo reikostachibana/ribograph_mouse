@@ -100,7 +100,10 @@ const datasets = computed<Partial<Plotly.PlotData>[]>(() => {
       console.log(mean, stdDev)
 
       // Apply z-score algorithm to each coverage value
-      const zScores = coverage.map(value => calculateZScore(value, mean, stdDev));
+      const zScores = coverage.map(value => {
+        const zScore = calculateZScore(value, mean, stdDev);
+        return Math.max(zScore, 0);
+      });
 
       return {
         x: generateRange(0, x.coverage.columns.length),
@@ -133,11 +136,14 @@ const datasets = computed<Partial<Plotly.PlotData>[]>(() => {
       console.log(mean, stdDev)
 
       // Apply z-score algorithm to each coverage value
-      const zScores = coverage.map(value => calculateZScore(value, mean, stdDev));
+      const zScores = coverage.map(value => {
+        const zScore = calculateZScore(value, mean, stdDev);
+        return Math.max(zScore, 0);
+      });
 
       return {
         x: generateRange(0, x.coverage.columns.length),
-        y: zScores,
+        y: zScores.map(z => -z),
         type: 'bar',
         name: x.experiment,
         marker: {
